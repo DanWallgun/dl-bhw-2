@@ -32,12 +32,12 @@ def _greedy_decode(
     :param device: device that the model runs on
     :return: a (batch, time) tensor with predictions
     """
-    
+
     src_padded = torch.nn.utils.rnn.pad_sequence(src, padding_value=1)
     src_seq_len = src_padded.shape[0]
     src_mask = torch.zeros((src_seq_len, src_seq_len), device=device).type(torch.bool)
-    src_padding_mask = (src_padded == 1).transpose(0, 1)
-    
+    # src_padding_mask = (src_padded == 1).transpose(0, 1)
+
     src_padded = src_padded.to(device)
     src_mask = src_mask.to(device)
 
@@ -60,7 +60,7 @@ def _greedy_decode(
         mask = (next_words[0] == 3) & (tm == max_len)
         # print(mask)
         tm[mask] = i
-    # print(tm)
+    # print(ys, tm)
     return ys, tm
 
 
@@ -120,8 +120,9 @@ def translate(
         tgt_tokens, time = _greedy_decode(model, srcs, max_len, tgt_tokenizer, device=device)
     else:
         raise NotImplementedError()
+    # print(tgt_tokens.T, time)
     tgt_tokens = [
         tokens[:t].tolist()
-        for tokens, t in zip(tgt_tokens, time)
+        for tokens, t in zip(tgt_tokens.T, time)
     ]
     return tgt_tokenizer.decode_batch(tgt_tokens)

@@ -49,6 +49,7 @@ def train_epoch(
     # you can obviously add new arguments or change the API if it does not suit you
     model.train()
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=1)
+    # scaler = torch.cuda.amp.GradScaler()
     acc_loss = 0
     num_samples = 0
     pb = tqdm(train_dataloader)
@@ -58,14 +59,13 @@ def train_epoch(
         tgt = tgt.to(device)
 
         tgt_input = tgt[:-1, :]
+        tgt_output = tgt[1:, :]
 
         src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input, device)
 
-        logits = model(src, tgt_input, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
-
         optimizer.zero_grad()
 
-        tgt_output = tgt[1:, :]
+        logits = model(src, tgt_input, src_mask, tgt_mask, src_padding_mask, tgt_padding_mask, src_padding_mask)
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_output.reshape(-1))
         loss.backward()
 
@@ -159,6 +159,7 @@ def train_model(data_dir, tokenizer_path, num_epochs):
         epochs=num_epochs, steps_per_epoch=len(train_dataloader),
         pct_start=0.05
     ) if num_epochs > 0 else None
+    # scheduler = None
 
     min_val_loss = float("inf")
 
