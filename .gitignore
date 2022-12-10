@@ -1,0 +1,8 @@
+.ipynb_checkpoints/
+*.tgz
+**/__pycache__/
+2017-01-trnmted/
+answers_*
+checkpoint_*
+runs/
+tokenizer/
