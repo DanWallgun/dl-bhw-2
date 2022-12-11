@@ -9,7 +9,7 @@ from sacrebleu.metrics import BLEU
 from tokenizers import Tokenizer
 from tqdm import trange
 from tqdm.auto import tqdm
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from data import TranslationDataset
 from decoding import translate
@@ -77,9 +77,9 @@ def train_epoch(
         num_samples += src.shape[1]
         pb.set_description(f'TrainLoss = {acc_loss/num_samples:.3f}')
 
-        if tbwriter is not None:
-            tbwriter.add_scalar('AccLoss/train', acc_loss/num_samples, step + idx)
-            tbwriter.add_scalar('LearningRate', [pg['lr'] for pg in optimizer.param_groups][0], step + idx)
+        # if tbwriter is not None:
+        #     tbwriter.add_scalar('AccLoss/train', acc_loss/num_samples, step + idx)
+        #     tbwriter.add_scalar('LearningRate', [pg['lr'] for pg in optimizer.param_groups][0], step + idx)
 
     return acc_loss / num_samples
 
@@ -171,7 +171,7 @@ def train_model(data_dir, tokenizer_path, num_epochs):
 
     min_val_loss = float("inf")
 
-    tbwriter = SummaryWriter()
+    # tbwriter = SummaryWriter()
 
     for epoch in trange(1, num_epochs + 1):
         step = (epoch - 1) * len(train_dataloader)
@@ -180,12 +180,13 @@ def train_model(data_dir, tokenizer_path, num_epochs):
             model, train_dataloader,
             optimizer, scheduler,
             device,
-            tbwriter, step
+            None,
+            step
         )
         val_loss = evaluate(model, val_dataloader, device)
 
         print(train_loss, val_loss)
-        tbwriter.add_scalar('Loss/val', val_loss, step)
+        # tbwriter.add_scalar('Loss/val', val_loss, step)
 
         # might be useful to translate some sentences from validation to check your decoding implementation
 
