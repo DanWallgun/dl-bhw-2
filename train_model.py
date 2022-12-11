@@ -49,7 +49,7 @@ def train_epoch(
     # you can obviously add new arguments or change the API if it does not suit you
     model.train()
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=1)
-    # scaler = torch.cuda.amp.GradScaler()
+
     acc_loss = 0
     num_samples = 0
     pb = tqdm(train_dataloader)
@@ -141,6 +141,10 @@ def train_model(data_dir, tokenizer_path, num_epochs):
         dropout_prob=0.2,
     )
     model.to(device)
+    for _, p in model.named_parameters():
+        if p.dim() > 1:
+            torch.nn.init.xavier_uniform_(p)
+            # print(f'apply xavier_uniform_ to {name}')
     model.load_state_dict(torch.load("checkpoint_last.pth"))
 
     print(f'#params = {sum([p.numel() for p in model.parameters()])}')
@@ -154,12 +158,12 @@ def train_model(data_dir, tokenizer_path, num_epochs):
     val_dataloader = DataLoader(val_dataset, collate_fn=val_dataset.collate_translation_data, batch_size=batch_size, num_workers=num_workers)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, max_lr=1e-3,
-        epochs=num_epochs, steps_per_epoch=len(train_dataloader),
-        pct_start=0.05
-    ) if num_epochs > 0 else None
-    # scheduler = None
+    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #     optimizer, max_lr=1e-3,
+    #     epochs=num_epochs, steps_per_epoch=len(train_dataloader),
+    #     pct_start=0.05, final_div_factor=5e0
+    # ) if num_epochs > 0 else None
+    scheduler = None
 
     min_val_loss = float("inf")
 

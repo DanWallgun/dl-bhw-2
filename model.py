@@ -76,12 +76,9 @@ class TranslationModel(nn.Module):
 
     def forward(
         self,
-        src_tokens: Tensor,
-        tgt_tokens: Tensor,
-        src_mask: Tensor,
-        tgt_mask: Tensor,
-        src_padding_mask: Tensor,
-        tgt_padding_mask: Tensor,
+        src_tokens: Tensor, tgt_tokens: Tensor,
+        src_mask: Tensor, tgt_mask: Tensor,
+        src_padding_mask: Tensor, tgt_padding_mask: Tensor,
         memory_key_padding_mask: Tensor,
     ):
         """
@@ -94,11 +91,22 @@ class TranslationModel(nn.Module):
                                 src_padding_mask, tgt_padding_mask, memory_key_padding_mask)
         return self.generator(outs)
 
-    def encode(self, src: Tensor, src_mask: Tensor):
-        return self.transformer.encoder(self.positional_encoding(
-                            self.src_tok_emb(src)), src_mask)
+    def encode(self, src: Tensor, src_mask: Tensor, src_key_padding_mask: Tensor = None):
+        return self.transformer.encoder(
+            self.positional_encoding(self.src_tok_emb(src)),
+            src_mask,
+            src_key_padding_mask=src_key_padding_mask
+        )
 
-    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
-        return self.transformer.decoder(self.positional_encoding(
-                          self.tgt_tok_emb(tgt)), memory,
-                          tgt_mask)
+    def decode(
+        self, tgt: Tensor, memory: Tensor,
+        tgt_mask: Tensor, memory_mask: Tensor = None,
+        tgt_key_padding_mask: Tensor = None, memory_key_padding_mask: Tensor = None):
+        return self.transformer.decoder(
+            self.positional_encoding(self.tgt_tok_emb(tgt)),
+            memory,
+            tgt_mask,
+            memory_mask=memory_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            memory_key_padding_mask=memory_key_padding_mask
+        )

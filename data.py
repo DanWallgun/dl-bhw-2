@@ -22,7 +22,7 @@ def process_training_file(input_path: Path, output_path: Path):
     with open(output_path, 'w') as f:
         for doc in tree:
             f.write(doc.find('description').tail.strip() + '\n')
-            
+
 
 
 def process_evaluation_file(input_path: Path, output_path: Path):
@@ -84,27 +84,27 @@ class TranslationDataset(Dataset):
         # self.tgt_tokenizer = Tokenizer.from_file(tgt_tokenizer)
         # self.src_tokenizer = src_tokenizer
         # self.tgt_tokenizer = tgt_tokenizer
-        
+
         raw_src = [
-            ' '.join([SpecialTokens.BEGINNING.value, line.strip(), SpecialTokens.END.value])
+            ''.join([SpecialTokens.BEGINNING.value, line.strip(), SpecialTokens.END.value])
             for line in open(src_file_path, 'r')
         ]
         raw_tgt = [
-            ' '.join([SpecialTokens.BEGINNING.value, line.strip(), SpecialTokens.END.value])
+            ''.join([SpecialTokens.BEGINNING.value, line.strip(), SpecialTokens.END.value])
             for line in open(tgt_file_path, 'r')
         ]
-        
+
         src = [torch.tensor(_.ids) for _ in src_tokenizer.encode_batch(raw_src)]
         tgt = [torch.tensor(_.ids) for _ in tgt_tokenizer.encode_batch(raw_tgt)]
-        
+
         self.src, self.tgt = [], []
-        
+
         for s, t in zip(src, tgt):
             if len(s) > max_len or len(t) > max_len:
                 continue
             self.src.append(s)
             self.tgt.append(t)
-        
+
     def __len__(self):
         return len(self.src)
 
@@ -146,9 +146,8 @@ def train_tokenizers(base_dir: Path, save_dir: Path):
     en_tokenizer.pre_tokenizer = Whitespace()
     en_tokenizer.train(files=[os.path.join(base_dir, name) for name in os.listdir(base_dir) if name.endswith('en.txt')], trainer=trainer)
     en_tokenizer.save(str(save_dir / "tokenizer_en.json"))
-    
+
     de_tokenizer = Tokenizer(BPE(unk_token=SpecialTokens.UNKNOWN.value))
     de_tokenizer.pre_tokenizer = Whitespace()
     de_tokenizer.train(files=[os.path.join(base_dir, name) for name in os.listdir(base_dir) if name.endswith('de.txt')], trainer=trainer)
     de_tokenizer.save(str(save_dir / "tokenizer_de.json"))
-    
