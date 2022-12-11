@@ -141,6 +141,10 @@ def train_model(data_dir, tokenizer_path, num_epochs):
         dropout_prob=0.2,
     )
     model.to(device)
+    if num_epochs <= 0:
+        model.load_state_dict(torch.load("checkpoint_best.pth"))
+        return model
+
     for _, p in model.named_parameters():
         if p.dim() > 1:
             torch.nn.init.xavier_uniform_(p)
@@ -209,27 +213,44 @@ def translate_test_set(model: TranslationModel, data_dir, tokenizer_path):
     src_tokenizer = Tokenizer.from_file(str(tokenizer_path / "tokenizer_de.json"))
     tgt_tokenizer = Tokenizer.from_file(str(tokenizer_path / "tokenizer_en.json"))
 
+    run_greedy, run_beam = True, True
+
     greedy_translations = []
-    with open(data_dir / "test.de.txt") as input_file, open(
-        "answers_greedy.txt", "w+"
-    ) as output_file:
-        # translate with greedy search
-        greedy_translations = translate(
-            model,
-            input_file.readlines(),
-            src_tokenizer,
-            tgt_tokenizer,
-            'greedy',
-            device
-        )
-        output_file.write('\n'.join(greedy_translations) + '\n')
+    if run_greedy:
+        with open(data_dir / "test.de.txt") as input_file, open(
+            "answers_greedy.txt", "w+"
+        ) as output_file:
+            # translate with greedy search
+            greedy_translations = translate(
+                model,
+                input_file.readlines(),
+                src_tokenizer,
+                tgt_tokenizer,
+                'greedy',
+                device
+            )
+            output_file.write('\n'.join(greedy_translations) + '\n')
+    else:
+        greedy_translations = [line.strip() for line in open("answers_greedy.txt")]
+
 
     beam_translations = []
-    with open(data_dir / "test.de.txt") as input_file, open(
-        "answers_beam.txt", "w+"
-    ) as output_file:
-        # translate with beam search
-        pass
+    if run_beam:
+        with open(data_dir / "test.de.txt") as input_file, open(
+            "answers_beam.txt", "w+"
+        ) as output_file:
+            # translate with beam search
+            beam_translations = translate(
+                model,
+                input_file.readlines(),
+                src_tokenizer,
+                tgt_tokenizer,
+                'beam',
+                device
+            )
+            output_file.write('\n'.join(beam_translations) + '\n')
+    else:
+        beam_translations = [line.strip() for line in open("answers_beam.txt")]
 
     with open(data_dir / "test.en.txt") as input_file:
         references = [line.strip() for line in input_file]
@@ -238,9 +259,8 @@ def translate_test_set(model: TranslationModel, data_dir, tokenizer_path):
     bleu_greedy = bleu.corpus_score(greedy_translations, [references]).score
 
     # we're recreating the object, as it might cache some stats
-    # bleu = BLEU()
-    # bleu_beam = bleu.corpus_score(beam_translations, [references]).score
-    bleu_beam = 0.0
+    bleu = BLEU()
+    bleu_beam = bleu.corpus_score(beam_translations, [references]).score
 
     print(f"BLEU with greedy search: {bleu_greedy}, with beam search: {bleu_beam}")
     # maybe log to wandb/comet/neptune as well

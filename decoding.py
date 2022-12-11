@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from sacremoses import MosesDetokenizer, MosesPunctNormalizer
 from tokenizers import Tokenizer
 
@@ -75,6 +76,7 @@ def _beam_search_decode(
     tgt_tokenizer: Tokenizer,
     device: torch.device,
     beam_size: int,
+    beam_spread: int,
 ) -> torch.Tensor:
     """
     Given a batch of source sequences, predict its translations with beam search.
@@ -87,7 +89,38 @@ def _beam_search_decode(
     :param beam_size: the number of hypotheses
     :return: a (batch, time) tensor with predictions
     """
-    pass
+    src = src.unsqueeze(1).to(device)
+    tgt = torch.ones(1, src.size(1)).fill_(2).type(torch.long).to(device)
+
+    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt, device)
+    memory = model.encode(src, src_mask, src_padding_mask)
+
+    finished_beams = []
+    beams = [(tgt, 0.0)]
+
+    for i in range(max_len-1):
+        new_beams = []
+
+        for tgt, base_prob in beams:
+            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt, device)
+            out = model.decode(tgt, memory, tgt_mask, None, tgt_padding_mask, src_padding_mask)
+            prob = model.generator(out[-1:, :])
+            values, indices = torch.topk(F.log_softmax(prob[0, 0], dim=-1), beam_spread, dim=-1)
+            for val, idx in zip(values, indices):
+                new_beam = (torch.cat([tgt, idx.unsqueeze(0).unsqueeze(0)], dim=0), base_prob + val)
+                if idx == 3:
+                    finished_beams.append(new_beam)
+                else:
+                    new_beams.append(new_beam)
+
+        beam_size -= len(finished_beams)
+        if beam_size <= 0:
+            break
+        beams = sorted(new_beams, key=lambda x:x[1])[-beam_size:]
+
+    if not finished_beams:
+        return beams[-1][0]
+    return sorted(finished_beams, key=lambda x:x[1])[-1][0]
 
 
 @torch.inference_mode()
@@ -117,7 +150,7 @@ def translate(
             for sentence in src_sentences
         ])
     ]
-    max_len = max([len(s) for s in srcs]) + 10
+    max_len = max([len(s) for s in srcs]) + 5
     # print(f'{max_len=}')
 
     sentences = []
@@ -129,7 +162,11 @@ def translate(
             decoded = [tgt_tokenizer.id_to_token(id) for id in toks]
             sentences.append(detok.detokenize(decoded).replace(" '", "'"))
     elif translation_mode == 'beam':
-        raise NotImplementedError()
+        for src in tqdm(srcs):
+            toks = _beam_search_decode(model, src, max_len, None, device, 5, 5).flatten().tolist()[1:]
+            toks = toks[:toks.index(3)]
+            decoded = [tgt_tokenizer.id_to_token(id) for id in toks]
+            sentences.append(detok.detokenize(decoded).replace(" '", "'"))
     else:
         raise NotImplementedError()
 
