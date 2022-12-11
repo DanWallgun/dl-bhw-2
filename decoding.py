@@ -156,11 +156,19 @@ def translate(
     sentences = []
 
     if translation_mode == 'greedy':
-        tgt_tokens, time = _greedy_decode(model, srcs, max_len, None, device=device)
-        for tokens, t in zip(tgt_tokens.T, time):
-            toks = tokens[1:t].tolist()
-            decoded = [tgt_tokenizer.id_to_token(id) for id in toks]
-            sentences.append(detok.detokenize(decoded).replace(" '", "'"))
+        # tgt_tokens, time = _greedy_decode(model, srcs, max_len, None, device=device)
+        # for tokens, t in zip(tgt_tokens.T, time):
+        #     toks = tokens[1:t].tolist()
+        #     decoded = [tgt_tokenizer.id_to_token(id) for id in toks]
+        #     sentences.append(detok.detokenize(decoded).replace(" '", "'"))
+        batch_size = 64
+        for batch_idx in tqdm(range((len(srcs) + batch_size - 1) // batch_size)):
+            batch = srcs[batch_idx * batch_size:(1 + batch_idx) * batch_size]
+            tgt_tokens, time = _greedy_decode(model, batch, max_len, None, device=device)
+            for tokens, t in zip(tgt_tokens.T, time):
+                toks = tokens[1:t].tolist()
+                decoded = [tgt_tokenizer.id_to_token(id) for id in toks]
+                sentences.append(detok.detokenize(decoded).replace(" '", "'"))
     elif translation_mode == 'beam':
         for src in tqdm(srcs):
             toks = _beam_search_decode(model, src, max_len, None, device, 5, 5).flatten().tolist()[1:]
